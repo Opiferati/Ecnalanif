@@ -1,5 +1,5 @@
 # ECNALANIF — MISSION CHARTER (THESIS D, PRE-REGISTERED)
-**Date signed:** ______________ &nbsp;&nbsp;|&nbsp;&nbsp; **Signed by:** ______________ (Opie)
+**Date signed:** _____11/3/2026_________ &nbsp;&nbsp;|&nbsp;&nbsp; **Signed by:** _____Opie_________ (Opie)
 **Drafted:** 2026-11-03 by Digi, before any Ecnalanif data was examined.
 **Rule:** Written before any results exist. Never edited after signing; amendments are new dated sections, never deletions.
 **Relationship to Finalance:** Ecnalanif is Finalance's mirror-dimension twin. It lives in its own folder (C:\Ecnalanif) and its own git repo. It reads Finalance's price files and never writes to them. Measurement only: no broker, no orders, no real money.
