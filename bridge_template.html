@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ecnalanif — The Bridge</title>
+<style>
+  :root {
+    --void: #05080f; --hull: #0b1220; --panel: #0f1a2c; --line: #1c2c46;
+    --cyan: #5ee7ff; --amber: #ffb347; --text: #d6e4f5; --dim: #7189a8; --bad: #ff6b6b; --good: #6bffb8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: radial-gradient(1200px 600px at 70% -10%, #10233f 0%, var(--void) 60%); color: var(--text);
+         font: 14px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace; min-height: 100vh; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 28px;
+           border-bottom: 1px solid var(--line); background: rgba(5,8,15,.6); }
+  .title { letter-spacing: .32em; font-size: 15px; color: var(--cyan); text-shadow: 0 0 12px rgba(94,231,255,.45); }
+  .title small { display: block; letter-spacing: .18em; font-size: 11px; color: var(--dim); margin-top: 3px; }
+  .status { font-size: 12px; letter-spacing: .14em; padding: 6px 12px; border: 1px solid var(--amber); color: var(--amber); border-radius: 3px; }
+  main { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; padding: 20px 28px 28px; max-width: 1500px; margin: 0 auto; }
+  .panel { background: linear-gradient(180deg, var(--panel), var(--hull)); border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; position: relative; }
+  .panel h2 { margin: 0 0 12px; font-size: 11px; font-weight: normal; letter-spacing: .28em; color: var(--dim); text-transform: uppercase; }
+  .panel::before { content: ""; position: absolute; top: -1px; left: 18px; width: 48px; height: 2px; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+  .wide { grid-column: 1 / -1; }
+  canvas { width: 100%; height: 340px; display: block; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 12px; }
+  .legend span::before { content: ""; display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--c); box-shadow: 0 0 6px var(--c); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: right; font-weight: normal; color: var(--dim); font-size: 11px; letter-spacing: .12em; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  td { text-align: right; padding: 8px; border-bottom: 1px solid rgba(28,44,70,.5); font-variant-numeric: tabular-nums; }
+  td .role { color: var(--dim); font-size: 11px; margin-left: 8px; }
+  .pos { font-size: 11px; padding: 2px 7px; border-radius: 3px; border: 1px solid; }
+  .in { color: var(--good); border-color: rgba(107,255,184,.5); } .out { color: var(--dim); border-color: var(--line); }
+  .neg { color: var(--bad); } .posv { color: var(--good); }
+  .tele { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .gauge { background: rgba(5,8,15,.5); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; }
+  .gauge .k { font-size: 10px; letter-spacing: .2em; color: var(--dim); }
+  .gauge .v { font-size: 18px; margin-top: 4px; color: var(--cyan); }
+  .gauge .v.amber { color: var(--amber); }
+  .strip { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; margin-top: 14px; }
+  .strip div { height: 26px; border-radius: 2px; position: relative; }
+  .strip .l { background: rgba(94,231,255,.55); } .strip .nl { background: rgba(94,231,255,.08); }
+  .strip .r::after { content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 3px; background: #ff6b9d; }
+  .strip-key { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); margin-top: 10px; }
+  pre { margin: 0; white-space: pre-wrap; font: 12px/1.55 ui-monospace, Consolas, monospace; color: var(--text); }
+  .drone { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 14px; }
+  .drone svg { flex: 0 0 38px; }
+  .bb { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; }
+  .bb div { flex: 1 1 240px; border: 1px dashed var(--line); padding: 10px 12px; border-radius: 4px; }
+  .docked { grid-column: 1 / -1; text-align: center; padding: 40px 20px; border: 1px solid var(--amber); color: var(--amber);
+            letter-spacing: .2em; border-radius: 6px; background: rgba(255,179,71,.05); }
+  footer { text-align: center; color: var(--dim); font-size: 11px; padding: 0 0 24px; letter-spacing: .1em; }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="title">ECNALANIF<small>OBSERVATION STATION · MIRROR DIMENSION · THESIS D</small></div>
+  <div class="status" id="status">—</div>
+</header>
+<main id="main"></main>
+<footer>Simulated / measurement only · no broker · no orders · not investment advice</footer>
+<script>
+const S = /*__STATE__*/null;
+const $ = (h) => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstChild; };
+const esc = (s) => String(s ?? '—').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const pct = (x) => x == null ? '—' : (x >= 0 ? '+' : '') + (x * 100).toFixed(2) + '%';
+const money = (x) => '$' + x.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const main = document.getElementById('main');
+
+function moonSvg(d) {
+  // d = signed days from new moon; illuminated fraction ~ (1 - cos(2π d / 29.53)) / 2
+  const f = (1 - Math.cos(2 * Math.PI * d / 29.53)) / 2, r = 16, waxing = d > 0;
+  const rx = Math.abs(1 - 2 * f) * r;
+  const limb = waxing ? 1 : 0, term = waxing ? (f < .5 ? 0 : 1) : (f < .5 ? 1 : 0);
+  return `<svg width="38" height="38" viewBox="-19 -19 38 38"><circle r="${r}" fill="#0b1220" stroke="#2a3f60"/>
+    <path d="M0 ${-r} A ${r} ${r} 0 0 ${limb} 0 ${r} A ${rx} ${r} 0 0 ${term} 0 ${-r}" fill="#5ee7ff" opacity=".85"/></svg>`;
+}
+function droneSvg(color) {
+  return `<svg width="38" height="38" viewBox="0 0 38 38"><g fill="none" stroke="${color}" stroke-width="1.6">
+    <circle cx="19" cy="19" r="6"/><path d="M13 19H4M25 19h9M19 13V6M19 25v7"/><circle cx="4" cy="19" r="2.5"/>
+    <circle cx="34" cy="19" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="19" cy="33" r="2.5"/></g>
+    <circle cx="19" cy="19" r="2" fill="${color}"><animate attributeName="opacity" values="1;.2;1" dur="2.4s" repeatCount="indefinite"/></circle></svg>`;
+}
+
+function telemetry(t) {
+  return $(`<section class="panel"><h2>Telemetry</h2>
+    <div class="drone">${moonSvg(t.days_from_new_moon)}<div><div style="color:var(--cyan)">${esc(t.moon)}</div>
+      <div style="color:var(--dim);font-size:12px">${t.days_from_new_moon >= 0 ? '+' : ''}${t.days_from_new_moon} days from new moon · ${esc(t.date)}</div></div></div>
+    <div class="tele">
+      <div class="gauge"><div class="k">MERCURY</div><div class="v ${t.mercury_retrograde ? 'amber' : ''}">${t.mercury_retrograde ? 'RETROGRADE' : 'DIRECT'}</div></div>
+      <div class="gauge"><div class="k">KP INDEX</div><div class="v ${t.kp >= 6 ? 'amber' : ''}">${t.kp == null ? '—' : t.kp.toFixed(1)}</div><div style="font-size:10px;color:var(--dim)">${esc(t.kp_date)}</div></div>
+      <div class="gauge"><div class="k">SKALD · STOCKS</div><div class="v">${esc(t.skald_stock)}</div></div>
+      <div class="gauge"><div class="k">SKALD · CRYPTO</div><div class="v">${esc(t.skald_crypto)}</div></div>
+    </div>
+    <div class="strip">${S.sky_strip.map(x => `<div class="${x.lunar ? 'l' : 'nl'} ${x.retro ? 'r' : ''}" title="${x.date}${x.lunar ? ' · lunar window' : ''}${x.retro ? ' · Mercury retrograde' : ''}"></div>`).join('')}</div>
+    <div class="strip-key"><span>next 45 days ▸</span><span><b style="color:var(--cyan)">■</b> lunar window &nbsp; <b style="color:#ff6b9d">▬</b> Mercury retrograde</span></div>
+  </section>`);
+}
+
+function dronesPanel() {
+  return $(`<section class="panel"><h2>Drones</h2>
+    <div class="drone">${droneSvg('#5ee7ff')}<pre>${esc(S.cogito)}</pre></div>
+    <div class="drone">${droneSvg('#ffb347')}<pre>${esc(S.memoria)}</pre></div></section>`);
+}
+
+function viewscreen() {
+  const p = $(`<section class="panel"><h2>Viewscreen · flight paths since launch ${esc(S.launch_date)}</h2>
+    <canvas id="cv"></canvas><div class="legend">${S.ships.map(s => `<span style="--c:${s.color}">${esc(s.name)}</span>`).join('')}</div></section>`);
+  requestAnimationFrame(() => draw(p.querySelector('canvas')));
+  return p;
+}
+
+function draw(cv) {
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext('2d'); g.scale(dpr, dpr);
+  const all = S.ships.flatMap(s => s.curve), n = S.dates.length;
+  let lo = Math.min(...all), hi = Math.max(...all);
+  if (hi - lo < 200) { lo -= 100; hi += 100; }
+  const pad = {l: 64, r: 12, t: 10, b: 24};
+  const x = i => pad.l + (n <= 1 ? 0.5 : i / (n - 1)) * (W - pad.l - pad.r);
+  const y = v => pad.t + (1 - (v - lo) / (hi - lo)) * (H - pad.t - pad.b);
+  g.strokeStyle = '#1c2c46'; g.fillStyle = '#7189a8'; g.font = '11px ui-monospace, Consolas, monospace'; g.lineWidth = 1;
+  for (let k = 0; k <= 4; k++) {
+    const v = lo + (hi - lo) * k / 4, yy = y(v);
+    g.beginPath(); g.moveTo(pad.l, yy); g.lineTo(W - pad.r, yy); g.stroke();
+    g.fillText('$' + Math.round(v).toLocaleString(), 4, yy + 4);
+  }
+  g.fillText(S.dates[0], pad.l, H - 6);
+  const last = S.dates[n - 1]; g.fillText(last, W - pad.r - g.measureText(last).width, H - 6);
+  for (const s of S.ships) {
+    g.strokeStyle = s.color; g.lineWidth = s.id === 'earth' ? 1.4 : 2; g.shadowColor = s.color; g.shadowBlur = 6;
+    if (s.id === 'echo' || s.id === 'earth') g.setLineDash([5, 4]); else g.setLineDash([]);
+    g.beginPath(); s.curve.forEach((v, i) => i ? g.lineTo(x(i), y(v)) : g.moveTo(x(i), y(v)));
+    if (n === 1) { g.arc(x(0), y(s.curve[0]), 3, 0, 7); }
+    g.stroke();
+  }
+  g.shadowBlur = 0; g.setLineDash([]);
+}
+
+function scoreboard() {
+  return $(`<section class="panel"><h2>Scoreboard</h2><table>
+    <tr><th>SHIP</th><th>EQUITY</th><th>RETURN</th><th>SHARPE</th><th>MAX DD</th><th>TRADES</th><th>NOW</th><th>NEXT</th></tr>
+    ${S.ships.map(s => `<tr><td><span style="color:${s.color}">●</span> ${esc(s.name)}<span class="role">${esc(s.role)}</span></td>
+      <td>${money(s.equity)}</td><td class="${s.return < 0 ? 'neg' : s.return > 0 ? 'posv' : ''}">${pct(s.return)}</td>
+      <td>${s.sharpe == null ? '—' : s.sharpe.toFixed(2)}</td><td>${(s.max_dd * 100).toFixed(1)}%</td><td>${s.n_trades}</td>
+      <td><span class="pos ${s.position ? 'in' : 'out'}">${s.position ? 'IN SPY' : 'CASH'}</span></td>
+      <td><span class="pos ${s.next === 'IN SPY' ? 'in' : 'out'}">${esc(s.next)}</span></td></tr>`).join('')}
+  </table></section>`);
+}
+
+function boxes() {
+  return $(`<section class="panel wide"><h2>Black boxes</h2><div class="bb">
+    <div><b style="color:var(--cyan)">BLACK BOX 1</b> · historical, 2007 → today<br>${esc(S.blackbox1)}</div>
+    <div><b style="color:var(--amber)">BLACK BOX 2</b> · forward, 252 trading days<br>${esc(S.blackbox2)}</div></div></section>`);
+}
+
+const st = document.getElementById('status');
+if (S.status === 'docked') {
+  st.textContent = 'FLEET DOCKED';
+  main.append($(`<div class="docked">FLEET DOCKED · SIGN THE MISSION CHARTER (THESIS_D.md) TO LAUNCH</div>`));
+  main.append(telemetry(S.telemetry)); main.append(dronesPanel());
+} else {
+  st.textContent = `IN FLIGHT · DAY ${S.days_flown} / 252 · ${S.as_of}`;
+  if (S.warnings && S.warnings.length) main.append($(`<div class="docked" style="padding:14px;letter-spacing:.08em">${S.warnings.map(esc).join(' · ')}</div>`));
+  main.append(viewscreen()); main.append(telemetry(S.telemetry));
+  main.append(scoreboard()); main.append(dronesPanel()); main.append(boxes());
+}
+</script>
+</body>
+</html>
