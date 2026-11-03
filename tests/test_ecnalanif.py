@@ -176,11 +176,18 @@ class TestScanEndToEnd(unittest.TestCase):
                     "import scan; st=scan.run(); print(json.dumps({'status':st['status'],'ships':len(st.get('ships',[]))}))")
             with open(os.path.join(tmp, "kp.txt"), "w") as f:
                 f.write("\n".join(kp_lines))
+            import re
+            ch = os.path.join(app, "THESIS_D.md")          # the temp copy starts unsigned, whatever the real one says
+            with open(ch) as f:
+                t0 = f.read()
+            with open(ch, "w") as f:
+                f.write(re.sub(r"\*\*Date signed:\*\*[^&]*", "**Date signed:** ______________ ", t0, count=1))
             import subprocess
             out = subprocess.run([sys.executable, "-c", code], cwd=app, env=env, capture_output=True, text=True)
             self.assertEqual(json.loads(out.stdout.strip().splitlines()[-1])["status"], "docked", out.stderr)
             ch = os.path.join(app, "THESIS_D.md")
-            txt = open(ch).read().replace("**Date signed:** ______________", "**Date signed:** 2026-11-03", 1)
+            with open(ch) as f:
+                txt = f.read().replace("**Date signed:** ______________", "**Date signed:** 2026-11-03", 1)
             open(ch, "w").write(txt)
             out = subprocess.run([sys.executable, "-c", code], cwd=app, env=env, capture_output=True, text=True)
             res = json.loads(out.stdout.strip().splitlines()[-1])

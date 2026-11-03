@@ -92,10 +92,14 @@ def cross_check(long_rows, fin_rows, tol: float = 0.001) -> int:
     return shared
 
 
+# Real market closures longer than a normal holiday weekend: not missing data.
+KNOWN_CLOSURES = {("2001-09-10", "2001-09-17")}   # NYSE closed Sept 11–14, 2001
+
+
 def check_integrity(rows, max_gap_days: int = 5, max_jump: float = 0.25):
     for (d0, c0), (d1, c1) in zip(rows, rows[1:]):
         gap = (datetime.fromisoformat(d1) - datetime.fromisoformat(d0)).days
-        if gap > max_gap_days:
+        if gap > max_gap_days and (d0, d1) not in KNOWN_CLOSURES:
             raise SourceError(f"SPY gap of {gap} days after {d0}")
         if abs(c1 / c0 - 1) > max_jump:
             raise SourceError(f"SPY jump of {c1 / c0 - 1:+.0%} on {d1}")
