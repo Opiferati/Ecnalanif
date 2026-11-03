@@ -86,6 +86,20 @@ def run() -> dict:
         if launch["charter_hash"] != charter.body_hash(text):
             warnings.append("Charter text changed since launch — changes must be dated amendments")
     else:
+        # Never launch on stale prices: a launch on an old close would backdate the flight to before signing.
+        now = datetime.now(timezone.utc)
+        expect = sky.to_ny_date(now - timedelta(hours=17))        # the latest session that should be closed
+        while expect.weekday() >= 5:
+            expect -= timedelta(days=1)
+        if prices[-1][0] < expect.isoformat():
+            st = {"status": "docked", "message": f"Signed, waiting for fresh prices: newest close {prices[-1][0]}, "
+                  f"expected {expect.isoformat()}. Press Treasury in Imperium, or wait for tonight's refresh.",
+                  "telemetry": telemetry(today, sources.load_frozen_kp(), moods), "sky_strip": sky_strip(today),
+                  "ships_meta": fleet.SHIPS}
+            st["cogito"] = "DRONE COGITO — " + st["message"]
+            st["memoria"] = drones.memoria(st)
+            bridge.write(st)
+            return st
         launch = {"launch_date": prices[-1][0], "charter_hash": charter.body_hash(text), "signed": sig,
                   "launched_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
         with open(LAUNCH, "w") as f:
