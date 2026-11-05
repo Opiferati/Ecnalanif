@@ -3,3 +3,7 @@ __pycache__/
 *.tmp
 Bridge.html
 state/state.json
+
+# Secrets, never commit
+.env
+.env.*
