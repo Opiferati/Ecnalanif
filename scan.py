@@ -144,7 +144,9 @@ def run() -> dict:
         entry = {"scan_date": today.isoformat(), "as_of": prices[-1][0], "at": stamp}
         if today.isoformat() != prices[-1][0]:
             entry["backfilled"] = True
-        f.write(json.dumps(entry) + "\n")
+        # A late look at a close that's already logged (Saturday re-reading Friday) adds nothing: don't write it.
+        if not entry.get("backfilled") or (prices[-1][0] not in live and prices[-1][0] not in back):
+            f.write(json.dumps(entry) + "\n")
     live, back = sources.read_scan_log(SCAN_LOG)
     scan_dates = live | back
     tally = sources.scan_tally(flown, live, back, charter.amendment_initialed(1, text))

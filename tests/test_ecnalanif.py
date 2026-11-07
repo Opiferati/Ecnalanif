@@ -208,7 +208,22 @@ class TestScanEndToEnd(unittest.TestCase):
             # every closed day, none faked as live (fake dates never equal today, so even launch day is "late")
             self.assertEqual(filled, [p[-1][0]] + [d for d, _ in more])
             st = json.load(open(os.path.join(app, "state", "state.json")))
-            self.assertEqual((st["missed_scans"], st["backfilled_scans"], st["missed_rule"]), (5, 5, "original"))
+            # The temp copy carries the real charter: initialed → backfills count as scanned; not → they still count as missed
+            want = (0, 5, "Amendment 1") if charter.amendment_initialed(1, open(ch).read()) else (5, 5, "original")
+            self.assertEqual((st["missed_scans"], st["backfilled_scans"], st["missed_rule"]), want)
+            with open(ch) as f:                                   # and the other rule, explicitly
+                t1 = f.read()
+            flip = (re.sub(r"(\*\*Initialed:\*\*)[^\n(]*", r"\1 ______________ ", t1)
+                    if want[2] == "Amendment 1" else t1.replace("**Initialed:** ______________", "**Initialed:** Opie", 1))
+            open(ch, "w").write(flip)
+            subprocess.run([sys.executable, "-c", code], cwd=app, env=env, capture_output=True, text=True)
+            st2 = json.load(open(os.path.join(app, "state", "state.json")))
+            self.assertEqual(st2["missed_rule"], "original" if want[2] == "Amendment 1" else "Amendment 1")
+            self.assertEqual(st2["missed_scans"], 5 if want[2] == "Amendment 1" else 0)
+            # A weekend-style repeat (same newest close, nothing new) writes no extra log line
+            n = len(open(os.path.join(app, "state", "scan_log.jsonl")).readlines())
+            subprocess.run([sys.executable, "-c", code], cwd=app, env=env, capture_output=True, text=True)
+            self.assertEqual(len(open(os.path.join(app, "state", "scan_log.jsonl")).readlines()), n)
         finally:
             shutil.rmtree(tmp)
 
