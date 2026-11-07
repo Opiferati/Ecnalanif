@@ -64,7 +64,7 @@ Wanting to peek early, tweak a window "just slightly," or add a planet after see
 *Ecnalanif · Thesis D · Simulated / measurement only · Not investment advice*
 
 ## AMENDMENT 1 — Backfilled scans (dated 2026-11-07, day 3 of 252)
-**Initialed:** ______________ (Opie)
+**Initialed:** __Opie____________ (Opie)
 
 **Why:** The scan already recomputes every missed day from data on file, with the same rules, so a day the PC was off is not lost. But the original integrity flag counts any day not scanned on its own evening as missing, so a long ride could flag the verdict even though nothing was guessed. Written on day 3, before any forward result means anything.
 
