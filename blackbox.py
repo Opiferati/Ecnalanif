@@ -93,10 +93,11 @@ def forward() -> int:
             bb1 = json.load(f)["verdicts"]
     pos = fleet.positions(prices, sources.load_frozen_kp())
     res = judge(prices, pos, start, end, need_bb1=bb1)
-    with open(os.path.join(STATE, "scan_log.jsonl")) as f:
-        seen = {json.loads(l)["as_of"] for l in f if l.strip()}
-    missed = sum(1 for d, _ in prices[start + 1:end] if d not in seen)
+    live, back = sources.read_scan_log(os.path.join(STATE, "scan_log.jsonl"))
+    tally = sources.scan_tally([d for d, _ in prices[start + 1:end]], live, back, charter.amendment_initialed(1))
+    missed = tally["missed"]
     _seal(BB2, {"box": 2, "span": [prices[start][0], prices[end - 1][0]], "missed_scans": missed,
+                "backfilled_scans": tally["backfilled"], "missed_rule": tally["rule"],
                 "integrity_flag": missed > 0.10 * FORWARD_DAYS, **res})
     return 0
 

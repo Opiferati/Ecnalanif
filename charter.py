@@ -21,6 +21,17 @@ def signed(text: str | None = None) -> tuple[bool, str]:
     return (bool(re.search(r"\d", val)), val)
 
 
+def amendment_initialed(n: int, text: str | None = None) -> bool:
+    """True once Opie has initialed AMENDMENT n (a name or date on its **Initialed:** line)."""
+    text = read() if text is None else text
+    m = re.search(rf"\n## AMENDMENT {n}\b(.*?)(?=\n## |\Z)", text, re.S)
+    if not m:
+        return False
+    i = re.search(r"\*\*Initialed:\*\*\s*([^|&\n]*)", m.group(1))
+    val = (i.group(1) if i else "").replace("(Opie)", "").strip().strip("_").strip()
+    return bool(re.search(r"[A-Za-z0-9]", val))
+
+
 def body_hash(text: str | None = None) -> str:
     """Hash of everything before the first amendment, so dated amendments don't trip the lock."""
     text = read() if text is None else text

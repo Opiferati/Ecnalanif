@@ -15,7 +15,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data")
@@ -132,11 +132,29 @@ def load_frozen_kp() -> dict[str, float]:
         return {r["date"]: float(r["kp_max"]) for r in csv.DictReader(f)}
 
 
+def _days(a: str, b: str) -> list[str]:
+    d, end, out = date.fromisoformat(a), date.fromisoformat(b), []
+    while d <= end:
+        out.append(d.isoformat()); d += timedelta(days=1)
+    return out
+
+
 def update_frozen_kp(since: str) -> dict[str, float]:
     """Fetch the nowcast, freeze any newly complete days on or after `since`, return everything frozen."""
     frozen = load_frozen_kp()
     fresh = parse_kp(_get(KP_NOWCAST).decode("utf-8", "replace"))
     new = {d: k for d, k in fresh.items() if d >= since and d not in frozen}
+    # The nowcast file only reaches back about 30 days. If the PC was off longer than that, a day can fall
+    # off it before it was ever frozen: take that day from GFZ's since-1932 file (also nowcast+definitive,
+    # updated daily). Only days still missing are taken, and only complete ones, same as above.
+    last = (datetime.now(timezone.utc).date() - timedelta(days=2)).isoformat()
+    gaps = [d for d in _days(since, last) if d not in frozen and d not in new]
+    if gaps:
+        try:
+            long = parse_kp(_get(KP_DEFINITIVE).decode("utf-8", "replace"))
+            new.update({d: long[d] for d in gaps if d in long})
+        except SourceError:
+            pass                                    # those days stay missing; Solar Weather grounds, as chartered
     if new:
         os.makedirs(DATA, exist_ok=True)
         exists = os.path.exists(KP_FROZEN)
@@ -149,6 +167,30 @@ def update_frozen_kp(since: str) -> dict[str, float]:
                 w.writerow([d, new[d], stamp])
         frozen.update(new)
     return frozen
+
+
+# ── Scan log (live and backfilled scans) ───────────────────────────────
+def read_scan_log(path: str) -> tuple[set[str], set[str]]:
+    """(days scanned on their own evening, days scanned later as backfill). Keys are price dates (as_of)."""
+    live: set[str] = set()
+    back: set[str] = set()
+    if os.path.exists(path):
+        with open(path) as f:
+            for line in f:
+                if line.strip():
+                    e = json.loads(line)
+                    (back if e.get("backfilled") else live).add(e["as_of"])
+    return live, back - live
+
+
+def scan_tally(flown: list[str], live: set[str], back: set[str], amended: bool) -> dict:
+    """Missed scans for the integrity flag. Before Amendment 1 a backfilled day still counts as missed;
+    after it, only a day with no scan at all does. Both counts are always reported."""
+    live_missed = [d for d in flown if d not in live]
+    filled = [d for d in live_missed if d in back]
+    missed = [d for d in live_missed if d not in back] if amended else live_missed
+    return {"missed": len(missed), "backfilled": len(filled), "missed_live": len(live_missed),
+            "rule": "Amendment 1" if amended else "original"}
 
 
 # ── Skald (telemetry only) ──────────────────────────────────────────────

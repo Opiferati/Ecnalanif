@@ -62,3 +62,19 @@ Wanting to peek early, tweak a window "just slightly," or add a planet after see
 
 ---
 *Ecnalanif · Thesis D · Simulated / measurement only · Not investment advice*
+
+## AMENDMENT 1 — Backfilled scans (dated 2026-11-07, day 3 of 252)
+**Initialed:** ______________ (Opie)
+
+**Why:** The scan already recomputes every missed day from data on file, with the same rules, so a day the PC was off is not lost. But the original integrity flag counts any day not scanned on its own evening as missing, so a long ride could flag the verdict even though nothing was guessed. Written on day 3, before any forward result means anything.
+
+**What changes:**
+- A day that closed while nobody scanned is logged as **backfilled** (with the date it was filled), never as live. A close counts as live only when scanned on its own New York day.
+- Backfilled days use only what existed for that day: the SPY close on file, the Moon and Mercury (computed), and Kp frozen from GFZ's nowcast. If the nowcast (about 30 days long) has already rolled past a day, that day's Kp comes from GFZ's since-1932 file instead, and the frozen_at stamp shows it was frozen late.
+- For the **integrity flag**, a backfilled day counts as scanned. Only a day with no scan at all counts as missed. The Bridge, Drone Memoria and Black Box 2 always show both numbers: missed and backfilled.
+
+**What does not change:** no ship, signal, window, threshold, data source for SPY, or pass/kill rule. Positions were always recomputed this way; this amendment only changes how the paperwork counts it.
+
+**Known weakness:** a Kp frozen late may differ slightly from what a same-evening scan would have frozen (GFZ refines its nowcast). Kp ≥ 6 is far above the usual small revisions, so a storm call flipping is unlikely, but it's possible, and the late frozen_at stamps make every such day visible.
+
+Until this line is initialed, the original rule stands and backfilled days still count as missed.

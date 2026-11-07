@@ -33,7 +33,8 @@ def memoria(state: dict) -> str:
     if state.get("status") == "docked":
         return "DRONE MEMORIA — nothing to remember yet. The log begins at launch."
     lines = [f"DRONE MEMORIA — launched {state['launch_date']}, {state['scans']} scan(s) logged, "
-             f"{state['missed_scans']} missed."]
+             f"{state['missed_scans']} missed, {state.get('backfilled_scans', 0)} backfilled "
+             f"(rule: {state.get('missed_rule', 'original')})."]
     recent = sorted(((tr["date"], s["name"], tr["side"], tr["price"]) for s in state["ships"] for tr in s["trades"]),
                     reverse=True)[:8]
     if recent:

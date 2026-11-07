@@ -130,19 +130,32 @@ def run() -> dict:
                       "curve": [round(x, 2) for x in eq]})
 
     days_flown = len(prices) - 1 - start
-    with open(SCAN_LOG, "a") as f:
-        f.write(json.dumps({"scan_date": today.isoformat(), "as_of": prices[-1][0],
-                            "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}) + "\n")
-    with open(SCAN_LOG) as f:
-        scan_dates = {json.loads(l)["as_of"] for l in f if l.strip()}
     flown = [d for d, _ in prices[start + 1:]]
-    missed = sum(1 for d in flown if d not in scan_dates)
+    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    live, back = sources.read_scan_log(SCAN_LOG)
+    with open(SCAN_LOG, "a") as f:
+        # Days that closed while nobody scanned: this run recomputed them (same rules, data on file),
+        # so log them honestly as backfilled, never as live. A close is live only when scanned on its own
+        # New York day (a weekend scan of Friday's close adds nothing: Friday was already scanned or wasn't).
+        for d in flown[:-1]:
+            if d not in live and d not in back:
+                f.write(json.dumps({"scan_date": today.isoformat(), "as_of": d, "at": stamp,
+                                    "backfilled": True}) + "\n")
+        entry = {"scan_date": today.isoformat(), "as_of": prices[-1][0], "at": stamp}
+        if today.isoformat() != prices[-1][0]:
+            entry["backfilled"] = True
+        f.write(json.dumps(entry) + "\n")
+    live, back = sources.read_scan_log(SCAN_LOG)
+    scan_dates = live | back
+    tally = sources.scan_tally(flown, live, back, charter.amendment_initialed(1, text))
+    missed = tally["missed"]
 
     st = {"status": "flying", "as_of": prices[-1][0], "launch_date": ld, "days_flown": days_flown,
           "dates": [d for d, _ in prices[start:]], "ships": ships, "ships_meta": fleet.SHIPS,
           "telemetry": telemetry(date.fromisoformat(prices[-1][0]), kp, moods),
           "sky_strip": sky_strip(date.fromisoformat(prices[-1][0])),
-          "scans": len(scan_dates), "missed_scans": missed,
+          "scans": len(scan_dates), "missed_scans": missed, "backfilled_scans": tally["backfilled"],
+          "missed_rule": tally["rule"],
           "grounded_days": [d for d in pos["grounded"]["solar"] if d > ld],
           "blackbox1": _bb_label(BB1, True, "python3 blackbox.py --historical"),
           "blackbox2": _bb_label(BB2, days_flown >= FORWARD_DAYS, "python3 blackbox.py --forward")

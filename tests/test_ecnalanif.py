@@ -197,7 +197,77 @@ class TestScanEndToEnd(unittest.TestCase):
             self.assertEqual(launch["launch_date"], p[-1][0])
             st = json.load(open(os.path.join(app, "state", "state.json")))
             self.assertTrue(all(abs(s["equity"] - 50000) < 60 for s in st["ships"]))   # day 0: only the entry fee
+            # A "motorcycle trip": five sessions close with nobody scanning, then one catch-up scan.
+            more = fake_prices(405, date(2025, 6, 2))[400:]
+            with open(os.path.join(fin, "SPY.csv"), "a") as f:
+                f.write("".join(f"{d},{c}\n" for d, c in more))
+            out = subprocess.run([sys.executable, "-c", code], cwd=app, env=env, capture_output=True, text=True)
+            self.assertEqual(json.loads(out.stdout.strip().splitlines()[-1])["status"], "flying", out.stderr)
+            log = [json.loads(l) for l in open(os.path.join(app, "state", "scan_log.jsonl")) if l.strip()]
+            filled = sorted(e["as_of"] for e in log if e.get("backfilled"))
+            # every closed day, none faked as live (fake dates never equal today, so even launch day is "late")
+            self.assertEqual(filled, [p[-1][0]] + [d for d, _ in more])
+            st = json.load(open(os.path.join(app, "state", "state.json")))
+            self.assertEqual((st["missed_scans"], st["backfilled_scans"], st["missed_rule"]), (5, 5, "original"))
         finally:
+            shutil.rmtree(tmp)
+
+
+class TestAmendment1Backfill(unittest.TestCase):
+    """Amendment 1: backfilled scans are logged honestly and only count as scanned once initialed."""
+
+    def test_initial_line(self):
+        base = "body\n## AMENDMENT 1 — x\n**Initialed:** {} (Opie)\n\ntext\n"
+        self.assertFalse(charter.amendment_initialed(1, base.format("______________")))
+        self.assertTrue(charter.amendment_initialed(1, base.format("__Opie 11/7/2026__")))
+        self.assertFalse(charter.amendment_initialed(2, base.format("Opie")))
+        self.assertFalse(charter.amendment_initialed(1, "no amendments here"))
+
+    def test_amendment_does_not_change_launch_hash(self):
+        body = "# CHARTER\n**Date signed:** 2026-11-03\nrules\n"
+        self.assertEqual(charter.body_hash(body), charter.body_hash(body + "\n## AMENDMENT 1 — x\n**Initialed:** Opie\n"))
+
+    def test_log_and_tally(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            p = os.path.join(tmp, "log.jsonl")
+            rows = [{"as_of": "d1"}, {"as_of": "d2", "backfilled": True}, {"as_of": "d3", "backfilled": True},
+                    {"as_of": "d3"}]                                         # d3 was also scanned live: live wins
+            with open(p, "w") as f:
+                f.write("\n".join(json.dumps(r) for r in rows) + "\n")
+            live, back = sources.read_scan_log(p)
+            self.assertEqual((live, back), ({"d1", "d3"}, {"d2"}))
+            flown = ["d1", "d2", "d3", "d4"]
+            self.assertEqual(sources.scan_tally(flown, live, back, False),
+                             {"missed": 2, "backfilled": 1, "missed_live": 2, "rule": "original"})
+            self.assertEqual(sources.scan_tally(flown, live, back, True)["missed"], 1)   # only d4, never scanned
+        finally:
+            shutil.rmtree(tmp)
+
+    def test_kp_falls_back_to_long_file_only_for_gaps(self):
+        from datetime import datetime, timezone
+        today = datetime.now(timezone.utc).date()
+        def kp_text(days, val):
+            return "\n".join(f"{d.year} {d.month:02d} {d.day:02d} {h:.1f} 0 0 0 {val:.3f} 0 0"
+                             for d in days for h in range(0, 24, 3)).encode()
+        old = [today - timedelta(days=k) for k in range(40, 30, -1)]     # fell off the 30-day nowcast
+        recent = [today - timedelta(days=k) for k in range(30, 1, -1)]
+        calls = []
+        def fake_get(url, tries=3):
+            calls.append(url)
+            return kp_text(recent, 2.0) if url == sources.KP_NOWCAST else kp_text(old + recent, 6.333)
+        tmp = tempfile.mkdtemp()
+        saved = (sources._get, sources.KP_FROZEN)
+        try:
+            sources._get, sources.KP_FROZEN = fake_get, os.path.join(tmp, "kp.csv")
+            kp = sources.update_frozen_kp(old[0].isoformat())
+            self.assertEqual(kp[old[0].isoformat()], 6.333)            # gap filled from the long file
+            self.assertEqual(kp[recent[0].isoformat()], 2.0)           # nowcast wins where it has the day
+            calls.clear()
+            sources.update_frozen_kp(old[0].isoformat())
+            self.assertEqual(calls, [sources.KP_NOWCAST])             # no gaps left: long file not fetched
+        finally:
+            sources._get, sources.KP_FROZEN = saved
             shutil.rmtree(tmp)
 
 
