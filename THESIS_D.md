@@ -80,7 +80,7 @@ Wanting to peek early, tweak a window "just slightly," or add a planet after see
 Until this line is initialed, the original rule stands and backfilled days still count as missed.
 
 ## AMENDMENT 2 — The Jester, a control ship (dated 2026-11-08, day 3 of 252)
-**Initialed:** ______________ (Opie)
+**Initialed:** _____Opie_________ (Opie)
 
 **Why:** A ship can beat SPY by luck. Without something that is pure luck flying beside it, there's no way to see the difference. The Jester is that something: a fool on purpose, so every other ship has to prove it's smarter than a coin. Written on day 3, before any forward result means anything.
 
