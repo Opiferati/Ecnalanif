@@ -8,6 +8,7 @@ Positions are 1 (all in SPY) or 0 (all cash). pos[i] = the position held from cl
 """
 from __future__ import annotations
 
+import hashlib
 from datetime import date, timedelta
 
 import sky
@@ -25,6 +26,22 @@ SHIPS = [
     {"id": "mercury", "name": "Retrograde Drive", "role": "Test D3",              "color": "#ff6b9d"},
 ]
 TESTED = ("lunar", "solar", "mercury")
+
+# The Jester (Amendment 2, 2026-11-08): a control, not a test. Each trading day he is in SPY or cash by a
+# coin flip fixed in advance by a seeded hash of the date, so a flip never depends on data, never changes on
+# a rerun or a backfill, and cannot be tuned after the fact. The seed was chosen once, before any flip was
+# looked at, and is written into Amendment 2. Any ship that can't beat him convincingly was luck in a costume.
+JESTER = {"id": "jester", "name": "The Jester", "role": "Control (coin flip)", "color": "#e8d36a"}
+JESTER_SEED = "ecnalanif-jester-2026-11-08"
+
+
+def jester_flip(day: date) -> int:
+    """1 = in SPY, 0 = cash, for the interval that ends on `day`. Pure function of the seed and the date."""
+    return hashlib.sha256(f"{JESTER_SEED}|{day.isoformat()}".encode()).digest()[0] & 1
+
+
+def ships(jester: bool = False) -> list[dict]:
+    return SHIPS + ([JESTER] if jester else [])
 
 
 def _d(s: str) -> date:
@@ -44,12 +61,12 @@ def storm_days(kp_daily: dict) -> list[str]:
     return sorted(d for d, k in kp_daily.items() if k is not None and k >= KP_STORM)
 
 
-def positions(prices, kp_daily: dict | None = None) -> dict:
+def positions(prices, kp_daily: dict | None = None, jester: bool = False) -> dict:
     """{ship_id: [pos per bar]} plus {'grounded': {ship_id: [dates]}}. None = no decision possible yet."""
     n = len(prices)
     closes = [c for _, c in prices]
     dates = [d for d, _ in prices]
-    out = {s["id"]: [None] * n for s in SHIPS}
+    out = {s["id"]: [None] * n for s in ships(jester)}
     grounded = {"solar": []}
 
     # Echo: close > 200-day SMA, decided at close t
@@ -86,6 +103,8 @@ def positions(prices, kp_daily: dict | None = None) -> dict:
         out["earth"][i] = 1
         out["lunar"][i] = 1 if sky.lunar_hold(nxt) else 0
         out["mercury"][i] = 1 if sky.mercury_hold(nxt) else 0
+        if jester:
+            out["jester"][i] = jester_flip(nxt)          # like the sky ships: known ahead, filled at close i
         out["echo"][i] = echo_sig[i - 1] if i >= 1 else None
         if i >= 1:
             out["solar"][i] = solar_sig[i - 1]

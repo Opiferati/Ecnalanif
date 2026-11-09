@@ -44,6 +44,13 @@ def judge(prices, pos, start, end=None, need_bb1=None) -> dict:
                   and w["mean_hold"] > w["mean_cash"] and sh is not None and sh >= earth_sharpe)
         out[s] = res
         out["verdicts"][s] = "PASS" if ok else "KILL"
+    if "jester" in eq:      # Amendment 2: the honesty column. Display only, it never changes a verdict.
+        js = stats.sharpe(eq["jester"])
+        out["jester"] = {"sharpe": js, "return": eq["jester"][-1] / fleet.START_CASH - 1,
+                         "max_dd": stats.max_drawdown(eq["jester"]),
+                         "trades": len(fleet.simulate(prices, pos["jester"], start)["trades"])}
+        out["beat_the_jester"] = {s: (None if js is None or stats.sharpe(eq[s]) is None else stats.sharpe(eq[s]) > js)
+                                  for s in ("earth", *fleet.TESTED)}
     return out
 
 
@@ -91,7 +98,7 @@ def forward() -> int:
     if os.path.exists(BB1):
         with open(BB1) as f:
             bb1 = json.load(f)["verdicts"]
-    pos = fleet.positions(prices, sources.load_frozen_kp())
+    pos = fleet.positions(prices, sources.load_frozen_kp(), jester=charter.amendment_initialed(2))
     res = judge(prices, pos, start, end, need_bb1=bb1)
     live, back = sources.read_scan_log(os.path.join(STATE, "scan_log.jsonl"))
     tally = sources.scan_tally([d for d, _ in prices[start + 1:end]], live, back, charter.amendment_initialed(1))

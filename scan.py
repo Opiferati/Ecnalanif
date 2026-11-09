@@ -117,9 +117,10 @@ def run() -> dict:
         kp = sources.load_frozen_kp()
         warnings.append(f"Kp fetch failed ({e}); Solar Weather uses frozen Kp only")
 
-    pos = fleet.positions(prices, kp)
+    jester = charter.amendment_initialed(2, text)          # the Jester flies only once Amendment 2 is initialed
+    pos = fleet.positions(prices, kp, jester=jester)
     ships = []
-    for s in fleet.SHIPS:
+    for s in fleet.ships(jester):
         p = pos[s["id"]]
         sim = fleet.simulate(prices, p, start)
         eq = sim["equity"]
@@ -153,7 +154,7 @@ def run() -> dict:
     missed = tally["missed"]
 
     st = {"status": "flying", "as_of": prices[-1][0], "launch_date": ld, "days_flown": days_flown,
-          "dates": [d for d, _ in prices[start:]], "ships": ships, "ships_meta": fleet.SHIPS,
+          "dates": [d for d, _ in prices[start:]], "ships": ships, "ships_meta": fleet.ships(jester),
           "telemetry": telemetry(date.fromisoformat(prices[-1][0]), kp, moods),
           "sky_strip": sky_strip(date.fromisoformat(prices[-1][0])),
           "scans": len(scan_dates), "missed_scans": missed, "backfilled_scans": tally["backfilled"],

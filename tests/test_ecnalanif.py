@@ -228,6 +228,48 @@ class TestScanEndToEnd(unittest.TestCase):
             shutil.rmtree(tmp)
 
 
+class TestJester(unittest.TestCase):
+    """Amendment 2: the Jester — a fixed-seed coin flip that flies only once initialed and never changes a verdict."""
+
+    def test_flip_is_fixed_and_fair(self):
+        days = [date(2026, 1, 1) + timedelta(days=k) for k in range(2000)]
+        flips = [fleet.jester_flip(d) for d in days]
+        self.assertEqual(flips, [fleet.jester_flip(d) for d in days])          # same answer every time
+        self.assertTrue(set(flips) <= {0, 1})
+        self.assertTrue(0.45 < sum(flips) / len(flips) < 0.55)                # an honest coin
+
+    def test_absent_unless_asked_and_other_ships_untouched(self):
+        p = fake_prices()
+        a = fleet.positions(p, {}, jester=False)
+        b = fleet.positions(p, {}, jester=True)
+        self.assertNotIn("jester", a)
+        self.assertEqual(len(b["jester"]), len(p))
+        for s in ("earth", "echo", "lunar", "solar", "mercury"):
+            self.assertEqual(a[s], b[s], s)                                     # he changes nobody else
+        self.assertEqual([x["id"] for x in fleet.ships(True)][-1], "jester")
+        self.assertEqual(len(fleet.ships(False)), 5)
+
+    def test_black_box_adds_a_column_but_not_a_verdict(self):
+        import blackbox
+        p = fake_prices(400)
+        kp = {}
+        d = date.fromisoformat(p[0][0]) - timedelta(days=20)
+        while d <= date.fromisoformat(p[-1][0]):
+            kp[d.isoformat()] = 2.0; d += timedelta(days=1)
+        plain = blackbox.judge(p, fleet.positions(p, kp), 250)
+        withj = blackbox.judge(p, fleet.positions(p, kp, jester=True), 250)
+        self.assertEqual(plain["verdicts"], withj["verdicts"])
+        self.assertNotIn("beat_the_jester", plain)
+        self.assertEqual(set(withj["beat_the_jester"]), {"earth", "lunar", "solar", "mercury"})
+        self.assertIn("sharpe", withj["jester"])
+
+    def test_amendment_2_line_reads_like_amendment_1(self):
+        base = "body\n## AMENDMENT 1 — a\n**Initialed:** Opie\n\n## AMENDMENT 2 — b\n**Initialed:** {} (Opie)\n"
+        self.assertTrue(charter.amendment_initialed(1, base.format("______")))
+        self.assertFalse(charter.amendment_initialed(2, base.format("______________")))
+        self.assertTrue(charter.amendment_initialed(2, base.format("__Opie__")))
+
+
 class TestAmendment1Backfill(unittest.TestCase):
     """Amendment 1: backfilled scans are logged honestly and only count as scanned once initialed."""
 

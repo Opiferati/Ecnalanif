@@ -78,3 +78,19 @@ Wanting to peek early, tweak a window "just slightly," or add a planet after see
 **Known weakness:** a Kp frozen late may differ slightly from what a same-evening scan would have frozen (GFZ refines its nowcast). Kp ≥ 6 is far above the usual small revisions, so a storm call flipping is unlikely, but it's possible, and the late frozen_at stamps make every such day visible.
 
 Until this line is initialed, the original rule stands and backfilled days still count as missed.
+
+## AMENDMENT 2 — The Jester, a control ship (dated 2026-11-08, day 3 of 252)
+**Initialed:** ______________ (Opie)
+
+**Why:** A ship can beat SPY by luck. Without something that is pure luck flying beside it, there's no way to see the difference. The Jester is that something: a fool on purpose, so every other ship has to prove it's smarter than a coin. Written on day 3, before any forward result means anything.
+
+**What he does:**
+- Each trading day he is all in SPY or all in cash by a coin flip. The flip for a day is the first bit of SHA-256(`ecnalanif-jester-2026-11-08|<date>`). The seed was chosen once, written here before any flip was looked at, and is never changed.
+- He flies under the same engine, fees and slippage as every ship, and from the same launch day. A coin needs no foresight, so flying him from launch uses nothing that wasn't known then.
+- He shows on the Bridge, in the drones and in Black Box 2.
+
+**What it adds to Black Box 2:** one column, **beat the Jester?** (each ship's Sharpe vs his). It is **display only**: no PASS or KILL rule changes. A ship that passes but can't beat the Jester will be reported as such, and the post-mortem says what that means.
+
+**What does not change:** no ship, signal, window, threshold, data source or verdict rule. Black Box 1 stays sealed as it is.
+
+Until this line is initialed, the Jester does not fly.
