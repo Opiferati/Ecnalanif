@@ -51,6 +51,38 @@ def judge(prices, pos, start, end=None, need_bb1=None) -> dict:
                          "trades": len(fleet.simulate(prices, pos["jester"], start)["trades"])}
         out["beat_the_jester"] = {s: (None if js is None or stats.sharpe(eq[s]) is None else stats.sharpe(eq[s]) > js)
                                   for s in ("earth", *fleet.TESTED)}
+
+    # ── Law 8: error bars (added 2026-11-10) ──────────────────────────────
+    # "Every verdict reports the paired difference against the benchmark AND its
+    #  uncertainty. A gap inside its own error bar is UNTESTED, not a PASS."
+    #
+    # The verdict above turns on `sh >= earth_sharpe`, a BARE INEQUALITY between
+    # two Sharpe ratios. The standard error of a Sharpe over 504 days is near
+    # 0.7, so a gap of 0.1 clears that test on noise alone. That is the hole.
+    #
+    # Display only, it never changes a verdict — the same standing Amendment 2's
+    # honesty column has in this file. THESIS_D is signed and stays as signed
+    # (law 2). From Thesis G onward, error bars bind.
+    try:
+        rets = {s: stats.daily_returns(e) for s, e in eq.items()}
+        benches = tuple(b for b in ("earth", "jester") if b in rets)
+        for s in eq:
+            out.setdefault(s, {})["sharpe_se"] = stats.sharpe_se(eq[s])
+        for s in fleet.TESTED:
+            vs = {b: stats.paired_diff(rets[s], rets[b]) for b in benches if b != s}
+            inside = sorted(b for b, d in vs.items() if not d["decisive"])
+            out[s]["paired_vs"] = vs
+            out[s]["law8"] = "UNTESTED" if inside else "DECISIVE"
+            out[s]["law8_note"] = ("gap vs " + ", ".join(inside) + " is inside its own error bar"
+                                   if inside else "every gap is outside its own error bar")
+        out["error_bars"] = {
+            "binding": False, "law": "8", "added": "2026-11-10",
+            "note": ("Display-only, like Amendment 2's honesty column. THESIS_D is signed "
+                     "and stays as signed. Read law8 to see whether a PASS rests on a gap "
+                     "wider than its own error bar."),
+        }
+    except Exception as e:      # noqa: BLE001 — a display-only reading must never break a box
+        out["error_bars"] = {"binding": False, "law": "8", "error": str(e)}
     return out
 
 
