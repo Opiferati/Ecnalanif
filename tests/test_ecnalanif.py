@@ -191,7 +191,9 @@ class TestScanEndToEnd(unittest.TestCase):
             open(ch, "w").write(txt)
             out = subprocess.run([sys.executable, "-c", code], cwd=app, env=env, capture_output=True, text=True)
             res = json.loads(out.stdout.strip().splitlines()[-1])
-            self.assertEqual(res, {"status": "flying", "ships": 5}, out.stderr)
+            # Five ships as signed; six once Amendment 2 (the Jester) is initialed in the charter being tested.
+            n_ships = 6 if charter.amendment_initialed(2, txt) else 5
+            self.assertEqual(res, {"status": "flying", "ships": n_ships}, out.stderr)
             self.assertTrue(os.path.exists(os.path.join(app, "Bridge.html")))
             launch = json.load(open(os.path.join(app, "state", "launch.json")))
             self.assertEqual(launch["launch_date"], p[-1][0])
